@@ -3,38 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS V7.0 | SENTINEL-X</title>
+    <title>JARVIS V10.0 | LLAMA-TITAN</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --glow: #00f3ff;
-            --bg: #00080a;
-            --glass: rgba(0, 243, 255, 0.05);
-            --red: #ff003c;
+            --accent: #0072ff;
+            --bg: #000205;
+            --panel: rgba(0, 15, 25, 0.8);
             --border: rgba(0, 243, 255, 0.3);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
 
         body {
             background: var(--bg);
             color: var(--glow);
             font-family: 'Orbitron', sans-serif;
-            overflow: hidden; height: 100vh; width: 100vw;
-            display: flex; flex-direction: column;
+            overflow: hidden; height: 100vh;
             background-image: radial-gradient(circle at center, #001e22 0%, #000 100%);
         }
 
-        /* --- LOADING SCREEN --- */
+        /* --- HYPER-DRIVE BOOT SCREEN --- */
         #boot-screen {
             position: fixed; inset: 0; background: #000; z-index: 10000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: 1s ease;
+            transition: 1s ease-out;
         }
 
-        .loader-ring {
-            width: 150px; height: 150px; border: 2px solid transparent;
-            border-top: 2px solid var(--glow); border-radius: 50%;
+        .loader-box {
+            width: 300px; padding: 20px; border: 1px solid var(--border);
+            position: relative; overflow: hidden;
+        }
+
+        #progress-fill {
+            position: absolute; left: 0; top: 0; height: 100%;
+            background: rgba(0, 243, 255, 0.2); width: 0%; transition: 0.3s;
+        }
+
+        .status-text {
+            font-family: 'Share Tech Mono'; font-size: 12px;
+            margin-top: 10px; color: var(--glow); letter-spacing: 1px;
+        }
+
+        /* --- MAIN HUD --- */
+        #main-hud {
+            display: none; height: 100vh; grid-template-rows: 60px 1fr 90px;
+            padding: 10px; gap: 10px; opacity: 0;
+            transition: 1.5s ease-in-out;
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--panel); border: 1px solid var(--border);
+            padding: 0 20px; border-radius: 8px; backdrop-filter: blur(15px);
+        }
+
+        /* --- CHAT VIEWPORT --- */
+        #chat-window {
+            background: var(--panel); border: 1px solid var(--border);
+            border-radius: 8px; padding: 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth;
+        }
+
+        .message {
+            max-width: 85%; padding: 12px 18px; border-radius: 12px;
+            font-family: 'Share Tech Mono'; font-size: 15px; line-height: 1.5;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .user-msg {
+            align-self: flex-end; background: var(--glow); color: #000;
+            border-bottom-right-radius: 2px; box-shadow: 0 0 15px var(--glow);
+        }
+
+        .jarvis-msg {
+            align-self: flex-start; background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border); border-bottom-left-radius: 2px;
+        }
+
+        pre {
+            background: #000; color: #00ffaa; padding: 15px; border-radius: 8px;
+            margin-top: 10px; border: 1px solid #1a1a1a; overflow-x: auto;
+            font-family: 'Fira Code', monospace; font-size: 13px;
+        }
+
+        /* --- INPUT HUD --- */
+        .input-area {
+            display: flex; gap: 10px; align-items: center;
+            background: var(--panel); padding: 15px; border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        #user-input {
+            flex: 1; background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+            padding: 12px 20px; color: #fff; border-radius: 25px;
+            font-family: 'Orbitron'; font-size: 14px;
+        }
+
+        .btn {
+            width: 50px; height: 50px; border-radius: 50%; border: none;
+            background: var(--glow); color: #000; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 18px; transition: 0.3s;
+        }
+
+        .btn:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--glow); }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CORE REACTOR UI */
+        .reactor-small {
+            width: 30px; height: 30px; border: 2px solid var(--glow);
+            border-radius: 50%; border-style: dashed; animation: spin 4s linear infinite;
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--glow); }
+    </style>
+</head>
+<body>
+
+    <!-- BOOTING UP -->
+    <div id="boot-screen">
+        <div style="font-size: 24px; letter-spacing: 10px; margin-bottom: 20px;">JARVIS V10.0</div>
+        <div class="loader-box">
+            <div id="progress-fill"></div>
+            <div id="log-status" style="position: relative; z-index: 1;">SCANNING NEURAL NET...</div>
+        </div>
+        <button id="launch-btn" class="btn" style="width: auto; padding: 0 30px; border-radius: 5px; margin-top: 30px; display: none;" onclick="initSystem()">INITIALIZE LLAMA-TITAN</button>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <div id="main-hud">
+        <header>
+            <div style="font-weight: 900; font-size: 12px;">LLAMA-3.3-70B CORE</div>
+            <div class="reactor-small"></div>
+            <div style="text-align: right; font-family: 'Share Tech Mono'; font-size: 10px;">
+                <div style="color: #0f0;">BOSS: YASH RAWAT</div>
+                <div id="clock">00:00:00</div>
+            </div>
+        </header>
+
+        <div id="chat-window">
+            <!-- Neural stream here -->
+        </div>
+
+        <div class="input-area">
+            <button class="btn" onclick="startVoice()">🎤</button>
+            <input type="text" id="user-input" placeholder="Type a command, Boss Yash..." onkeypress="if(event.key=='Enter') executeCommand()">
+            <button class="btn" onclick="executeCommand()">➤</button>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "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";
+        const MODEL_ID = "meta-llama/llama-3.3-70b-instruct:free";
+
+        // --- BOOT SEQUENCE ---
+        window.onload = () => {
+            let p = 0;
+            const fill = document.getElementById('progress-fill');
+            const status = document.getElementById('log-status');
+            const logs = ["LOADING LLAMA CORE...", "LINKING NEURAL LINKS...", "BYPASSING ENCRYPTION...", "TITAN ENGINE STABLE.", "READY FOR BOSS YASH."];
+            
+            let logIdx = 0;
+            const timer = setInterval(() => {
+                p += Math.random() * 12;
+                if(p > 100) p = 100;
+                fill.style.width = p + "%";
+                
+                if(p > (logIdx + 1) * 20 && logIdx < logs.length) {
+                    status.innerText = logs[logIdx];
+                    logIdx++;
+                }
+
+                if(p === 100) {
+                    clearInterval(timer);
+                    document.getElementById('launch-btn').style.display = 'block';
+                }
+            }, 300);
+        };
+
+        function initSystem() {
+            document.getElementById('boot-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('boot-screen').style.display = 'none';
+                const hud = document.getElementById('main-hud');
+                hud.style.display = 'grid';
+                setTimeout(() => {
+                    hud.style.opacity = '1';
+                    const welcome = "Welcome back Boss Yash. Llama 3.3 Titan version 10.0 is online. How can I assist you in your mission today?";
+                    addMsg('jarvis', "Welcome back Boss Yash. Llama-Powered Titan Core is Online.");
+                    speak(welcome);
+                }, 100);
+            }, 800);
+            
+            setInterval(() => {
+                document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+            }, 1000);
+        }
+
+        // --- CHAT LOGIC ---
+        function addMsg(role, text) {
+            const win = document.getElementById('chat-window');
+            const div = document.createElement('div');
+            div.className = `message ${role}-msg`;
+
+            if(text.includes("```")) {
+                const parts = text.split("```");
+                let html = "";
+                for(let i=0; i<parts.length; i++) {
+                    if(i % 2 !== 0) html += `<pre>${parts[i].replace(/</g, '&lt;')}</pre>`;
+                    else html += parts[i].replace(/\n/g, '<br>');
+                }
+                div.innerHTML = html;
+            } else {
+                div.innerHTML = text.replace(/\n/g, '<br>');
+            }
+
+            win.appendChild(div);
+            win.scrollTop = win.scrollHeight;
+        }
+
+        async function executeCommand() {
+            const input = document.getElementById('user-input');
+            const val = input.value.trim();
+            if(!val) return;
+
+            addMsg('user', val);
+            input.value = "";
+
+            if(val.toLowerCase().match(/(image|photo|picture|बनाओ)/)) {
+                generateImage(val);
+                return;
+            }
+
+            try {
+                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${API_KEY}`,
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://jarvis-yash.com", // Optional but good practice
+                        "X-Title": "Jarvis V10"
+                    },
+                    body: JSON.stringify({
+                        "model": MODEL_ID,
+                        "messages": [
+                            {"role": "system", "content": "You are JARVIS V10.0, an elite AI powered by Llama 3.3 70B. Your creator and boss is Yash Rawat. Be extremely professional, concise, and helpful. You excel at coding and logical reasoning. Respond to Boss Yash with loyalty."},
+                            {"role": "user", "content": val}
+                        ]
+                    })
+                });
+
+                const data = await response.json();
+                const aiText = data.choices[0].message.content;
+                
+                addMsg('jarvis', aiText);
+                speak(aiText.split('```')[0]); // Don't speak the code
+
+            } catch (e) {
+                addMsg('jarvis', "ERROR: Neural Link Timeout. Boss, please verify internet connectivity.");
+            }
+        }
+
+        function generateImage(prompt) {
+            addMsg('jarvis', "Boss Yash, accessing Flux satellite imagery to render your request...");
+            speak("Initiating visual rendering, Boss.");
+            
+            const clean = prompt.replace(/(image|photo|generate|picture|बनाओ)/gi, "");
+            const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(clean)}?width=1024&height=1024&nologo=true&model=flux`;
+            
+            const img = document.createElement('img');
+            img.src = url;
+            img.style.width = "100%";
+            img.style.borderRadius = "10px";
+            img.style.marginTop = "15px";
+            img.style.border = "1px solid var(--border)";
+            
+            setTimeout(() => {
+                const msgs = document.getElementsByClassName('jarvis-msg');
+                msgs[msgs.length - 1].appendChild(img);
+                speak("Visual data received and displayed, Boss.");
+            }, 1000);
+        }
+
+        // --- SPEECH ENGINE (RE-FIXED) ---
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const speech = new SpeechSynthesisUtterance(text);
+            
+            // Fixed Regex for Devanagari using Unicode Points to avoid range error
+            const isHindi = /[\u0900-\u097F]/.test(text);
+            
+            speech.lang = isHindi ? 'hi-IN' : 'en-US';
+            speech.rate = 1.1;
+            speech.pitch = 0.9;
+            window.speechSynthesis.speak(speech);
+        }
+
+        function startVoice() {
+            const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(!Speech) return alert("Voice recognition not supported.");
+            const rec = new Speech();
+            rec.onresult = (e) => {
+                document.getElementById('user-input').value = e.results[0][0].transcript;
+                executeCommand();
+            };
+            rec.start();
+        }
+    </script>
+</body>
+</html>            border-top: 2px solid var(--glow); border-radius: 50%;
             animation: rot 1s linear infinite;
         }
 
